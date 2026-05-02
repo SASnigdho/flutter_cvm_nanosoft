@@ -7,16 +7,16 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/database/sqf_lite_service.dart';
 import '../../../../core/exceptions/failures.dart';
-import 'customer_remote_repository.dart';
 import '../models/customer.dart';
 import '../models/pending_operation.dart';
+import 'customer_remote_repository.dart';
 
 @lazySingleton
 class CustomerRepository {
-  CustomerRepository({required this.dbHelper, required this.apiClient});
+  CustomerRepository({required this.dbService, required this.remoteRepository});
 
-  final SqfLiteService dbHelper;
-  final CustomerRemoteRepository apiClient;
+  final SqfLiteService dbService;
+  final CustomerRemoteRepository remoteRepository;
 
   Future<Either<Failure, Unit>> syncInitialData() async {
     final connectivityResult = await Connectivity().checkConnectivity();
@@ -25,11 +25,11 @@ class CustomerRepository {
     }
 
     try {
-      final serverCustomers = await apiClient.fetchCustomers();
-      final localCustomers = await dbHelper.getAllCustomers();
+      final serverCustomers = await remoteRepository.fetchCustomers();
+      final localCustomers = await dbService.getAllCustomers();
 
       for (final serverCustomer in serverCustomers) {
-        final hasPending = await dbHelper.hasPendingOperationsForEntity(
+        final hasPending = await dbService.hasPendingOperationsForEntity(
           'customer',
           serverCustomer.id!,
         );
@@ -50,9 +50,9 @@ class CustomerRepository {
           );
 
           if (existingLocal.id == -1) {
-            await dbHelper.insertCustomer(serverCustomer);
+            await dbService.insertCustomer(serverCustomer);
           } else {
-            await dbHelper.updateCustomer(serverCustomer);
+            await dbService.updateCustomer(serverCustomer);
           }
         }
       }
@@ -66,7 +66,7 @@ class CustomerRepository {
 
   Future<Either<Failure, List<Customer>>> getAllCustomers() async {
     try {
-      final customers = await dbHelper.getAllCustomers();
+      final customers = await dbService.getAllCustomers();
       return right(customers);
     } catch (e) {
       log('DEV: $runtimeType: @getAllCustomers $e');
@@ -76,7 +76,7 @@ class CustomerRepository {
 
   Future<Either<Failure, Customer?>> getCustomerById(int id) async {
     try {
-      final customer = await dbHelper.getCustomerById(id);
+      final customer = await dbService.getCustomerById(id);
       return right(customer);
     } catch (e) {
       log('DEV: $runtimeType: @getCustomerById $e');
@@ -88,7 +88,7 @@ class CustomerRepository {
     final tempId = DateTime.now().millisecondsSinceEpoch;
     final newCustomer = customer.copyWith(id: tempId);
 
-    await dbHelper.insertCustomer(newCustomer);
+    await dbService.insertCustomer(newCustomer);
 
     final pendingOp = PendingOperation(
       entityType: 'customer',
@@ -98,13 +98,13 @@ class CustomerRepository {
       createdAt: DateTime.now(),
     );
 
-    await dbHelper.insertPendingOperation(pendingOp);
+    await dbService.insertPendingOperation(pendingOp);
   }
 
   Future<void> updateCustomerOffline(Customer customer) async {
-    await dbHelper.updateCustomer(customer);
+    await dbService.updateCustomer(customer);
 
-    final existingPending = await dbHelper.hasPendingOperationsForEntity(
+    final existingPending = await dbService.hasPendingOperationsForEntity(
       'customer',
       customer.id!,
     );
@@ -117,18 +117,20 @@ class CustomerRepository {
         payload: json.encode(customer.toJson()),
         createdAt: DateTime.now(),
       );
-      await dbHelper.insertPendingOperation(pendingOp);
+
+      await dbService.insertPendingOperation(pendingOp);
     }
   }
 
   Future<Either<Failure, Unit>> syncPendingOperations() async {
     final connectivityResult = await Connectivity().checkConnectivity();
+
     if (connectivityResult.contains(ConnectivityResult.none)) {
       return left(const ConnectionFailure('No internet connection'));
     }
 
     try {
-      final pendingOps = await dbHelper.getPendingOperations();
+      final pendingOps = await dbService.getPendingOperations();
 
       for (final op in pendingOps) {
         try {
@@ -137,15 +139,17 @@ class CustomerRepository {
                 json.decode(op.payload) as Map<String, dynamic>;
             customerData.remove('id');
             final customer = Customer.fromJson(customerData);
-            final createdCustomer = await apiClient.createCustomer(customer);
+            final createdCustomer = await remoteRepository.createCustomer(
+              customer,
+            );
 
-            await dbHelper.deleteCustomer(op.entityId);
-            await dbHelper.insertCustomer(createdCustomer);
-            await dbHelper.deletePendingOperation(op.id!);
+            await dbService.deleteCustomer(op.entityId);
+            await dbService.insertCustomer(createdCustomer);
+            await dbService.deletePendingOperation(op.id!);
           } else if (op.operationType == 'update') {
             final customer = Customer.fromJson(json.decode(op.payload));
-            await apiClient.updateCustomer(customer);
-            await dbHelper.deletePendingOperation(op.id!);
+            await remoteRepository.updateCustomer(customer);
+            await dbService.deletePendingOperation(op.id!);
           }
         } catch (e) {
           final updatedOp = op.copyWith(
@@ -153,9 +157,11 @@ class CustomerRepository {
             lastAttemptAt: DateTime.now(),
             status: op.retryCount + 1 >= 3 ? 'failed' : 'pending',
           );
-          await dbHelper.updatePendingOperation(updatedOp);
+
+          await dbService.updatePendingOperation(updatedOp);
         }
       }
+
       return right(unit);
     } catch (e) {
       log('Sync pending operations failed: $e');
@@ -164,10 +170,13 @@ class CustomerRepository {
   }
 
   Future<int> getPendingSyncCount() async {
-    return await dbHelper.getPendingOperationsCount();
+    return await dbService.getPendingOperationsCount();
   }
 
   Future<bool> hasPendingForCustomer(int customerId) async {
-    return await dbHelper.hasPendingOperationsForEntity('customer', customerId);
+    return await dbService.hasPendingOperationsForEntity(
+      'customer',
+      customerId,
+    );
   }
 }

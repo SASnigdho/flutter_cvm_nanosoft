@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/bindings/injection.dart';
@@ -22,6 +23,10 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
   @override
   void initState() {
     super.initState();
+
+    Connectivity().onConnectivityChanged.listen((result) {
+      _cubit.checkConnectivity();
+    });
 
     _cubit.init();
   }

@@ -42,13 +42,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i575.CustomerRepository>(
       () => _i575.CustomerRepository(
-        dbHelper: gh<_i585.SqfLiteService>(),
-        apiClient: gh<_i95.CustomerRemoteRepository>(),
+        dbService: gh<_i585.SqfLiteService>(),
+        remoteRepository: gh<_i95.CustomerRemoteRepository>(),
       ),
-    );
-    gh.factoryParam<_i918.CustomerDetailCubit, int, dynamic>(
-      (customerId, _) =>
-          _i918.CustomerDetailCubit(gh<_i575.CustomerRepository>(), customerId),
     );
     gh.factory<_i1014.AddCustomerCubit>(
       () => _i1014.AddCustomerCubit(repository: gh<_i575.CustomerRepository>()),
@@ -56,6 +52,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i1031.CustomerListCubit>(
       () =>
           _i1031.CustomerListCubit(repository: gh<_i575.CustomerRepository>()),
+    );
+    gh.factoryParam<_i918.CustomerDetailCubit, int, dynamic>(
+      (customerId, _) =>
+          _i918.CustomerDetailCubit(gh<_i575.CustomerRepository>(), customerId),
     );
     return this;
   }
