@@ -1,17 +1,42 @@
-# flutter_cvm_nanosoft
+# Customer Visit Management App
 
-A new Flutter project.
+Offline-first Flutter application for managing customer visits with full offline support and automatic sync.
 
-## Getting Started
+## Architecture
 
-This project is a starting point for a Flutter application.
+### Feature-Based Structure
+- `core/` - Database, network, repositories, utilities
+- `features/` - Feature modules (customer_list, customer_detail, add_customer)
+- `models/` - Data models with JSON serialization
 
-A few resources to get you started if this is your first Flutter project:
+### State Management (BLoC/Cubit)
+- CustomerListCubit - Manages list view, search, filters, sync status
+- CustomerDetailCubit - Manages customer details and offline updates
+- AddCustomerCubit - Handles offline customer creation
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### Offline-First Strategy
+1. **Local Database**: SQLite with sqflite
+2. **Pending Operations Queue**: Tracks create/update operations
+3. **Sync Process**: Manual sync button + auto-sync on reconnect
+4. **Conflict Resolution**: Local pending changes never overwritten by server data
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Setup Instructions
+```bash
+npm install -g json-server
+json-server --watch db.json --port 3000
+```
+
+### Prerequisites
+- Flutter SDK (>=3.0.0)
+- Dart SDK (>=3.0.0)
+- Node.js (for json-server)
+
+### Start mock API server:
+
+### Installation
+
+1. Clone repository
+2. Install dependencies:
+```bash
+flutter pub get
+```
