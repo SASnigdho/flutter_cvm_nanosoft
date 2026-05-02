@@ -7,7 +7,6 @@ Offline-first Flutter application for managing customer visits with full offline
 ### Feature-Based Structure
 - `core/` - Database, network, repositories, utilities
 - `features/` - Feature modules (customer_list, customer_detail, add_customer)
-- `models/` - Data models with JSON serialization
 
 ### State Management (BLoC/Cubit)
 - CustomerListCubit - Manages list view, search, filters, sync status
